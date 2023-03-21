@@ -27,6 +27,7 @@ _mongocrypt_opts_init (_mongocrypt_opts_t *opts)
 {
    BSON_ASSERT_PARAM (opts);
    memset (opts, 0, sizeof (*opts));
+   opts->use_fle2_v2 = true;
 }
 
 static void
