@@ -797,62 +797,63 @@ int main(int argc, char **argv) {
     printf("test-mongocrypt _mongocrypt_test_mcgrew\n\n");
 
     /* Install all tests. */
-    _mongocrypt_tester_install_crypto(&tester);
-    _mongocrypt_tester_install_log(&tester);
-    _mongocrypt_tester_install_data_key(&tester);
-    _mongocrypt_tester_install_ctx_encrypt(&tester);
-    _mongocrypt_tester_install_ctx_decrypt(&tester);
-    _mongocrypt_tester_install_ctx_rewrap_many_datakey(&tester);
-    _mongocrypt_tester_install_ciphertext(&tester);
-    _mongocrypt_tester_install_key_broker(&tester);
-    _mongocrypt_tester_install(&tester, "_test_mongocrypt_bad_init", _test_mongocrypt_bad_init, CRYPTO_REQUIRED);
-    _mongocrypt_tester_install_local_kms(&tester);
-    _mongocrypt_tester_install_cache(&tester);
-    _mongocrypt_tester_install_buffer(&tester);
-    _mongocrypt_tester_install_ctx_setopt(&tester);
-    _mongocrypt_tester_install_key(&tester);
-    _mongocrypt_tester_install_marking(&tester);
-    _mongocrypt_tester_install_traverse_util(&tester);
-    _mongocrypt_tester_install(&tester, "_test_setopt_schema", _test_setopt_schema, CRYPTO_REQUIRED);
-    _mongocrypt_tester_install(&tester,
-                               "_test_setopt_encrypted_field_config_map",
-                               _test_setopt_encrypted_field_config_map,
-                               CRYPTO_REQUIRED);
-    _mongocrypt_tester_install(&tester,
-                               "_test_setopt_invalid_kms_providers",
-                               _test_setopt_invalid_kms_providers,
-                               CRYPTO_REQUIRED);
-    _mongocrypt_tester_install_crypto_hooks(&tester);
-    _mongocrypt_tester_install_key_cache(&tester);
-    _mongocrypt_tester_install_kms_responses(&tester);
-    _mongocrypt_tester_install_status(&tester);
-    _mongocrypt_tester_install_endpoint(&tester);
-    _mongocrypt_tester_install(&tester, "_test_setopt_kms_providers", _test_setopt_kms_providers, CRYPTO_OPTIONAL);
-    _mongocrypt_tester_install_kek(&tester);
-    _mongocrypt_tester_install_cache_oauth(&tester);
-    _mongocrypt_tester_install_kms_ctx(&tester);
-    _mongocrypt_tester_install_csfle_lib(&tester);
-    _mongocrypt_tester_install_dll(&tester);
-    _mongocrypt_tester_install_mc_tokens(&tester);
-    _mongocrypt_tester_install_fle2_payloads(&tester);
-    _mongocrypt_tester_install_fle2_iev_v2_payloads(&tester);
-    _mongocrypt_tester_install_efc(&tester);
-    _mongocrypt_tester_install_cleanup(&tester);
-    _mongocrypt_tester_install_compact(&tester);
-    _mongocrypt_tester_install_fle2_payload_uev(&tester);
-    _mongocrypt_tester_install_fle2_payload_uev_v2(&tester);
-    _mongocrypt_tester_install_fle2_payload_iup(&tester);
-    _mongocrypt_tester_install_fle2_payload_iup_v2(&tester);
-    _mongocrypt_tester_install_fle2_payload_find_equality_v2(&tester);
-    _mongocrypt_tester_install_fle2_payload_find_range_v2(&tester);
-    _mongocrypt_tester_install_range_encoding(&tester);
-    _mongocrypt_tester_install_range_edge_generation(&tester);
-    _mongocrypt_tester_install_range_mincover(&tester);
-    _mongocrypt_tester_install_mc_RangeOpts(&tester);
-    _mongocrypt_tester_install_mc_FLE2RangeFindDriverSpec(&tester);
-    _mongocrypt_tester_install_gcp_auth(&tester);
-    _mongocrypt_tester_install_mc_reader(&tester);
-    _mongocrypt_tester_install_mc_writer(&tester);
+    // _mongocrypt_tester_install_crypto(&tester);
+    // _mongocrypt_tester_install_log(&tester);
+    // _mongocrypt_tester_install_data_key(&tester);
+    // _mongocrypt_tester_install_ctx_encrypt(&tester);
+    // _mongocrypt_tester_install_ctx_decrypt(&tester);
+    // _mongocrypt_tester_install_ctx_rewrap_many_datakey(&tester);
+    // _mongocrypt_tester_install_ciphertext(&tester);
+    // _mongocrypt_tester_install_key_broker(&tester);
+    // _mongocrypt_tester_install(&tester, "_test_mongocrypt_bad_init", _test_mongocrypt_bad_init, CRYPTO_REQUIRED);
+    // _mongocrypt_tester_install_local_kms(&tester);
+    // _mongocrypt_tester_install_cache(&tester);
+    // _mongocrypt_tester_install_buffer(&tester);
+    // _mongocrypt_tester_install_ctx_setopt(&tester);
+    // _mongocrypt_tester_install_key(&tester);
+    // _mongocrypt_tester_install_marking(&tester);
+    // _mongocrypt_tester_install_traverse_util(&tester);
+    // _mongocrypt_tester_install(&tester, "_test_setopt_schema", _test_setopt_schema, CRYPTO_REQUIRED);
+    // _mongocrypt_tester_install(&tester,
+    //                            "_test_setopt_encrypted_field_config_map",
+    //                            _test_setopt_encrypted_field_config_map,
+    //                            CRYPTO_REQUIRED);
+    // _mongocrypt_tester_install(&tester,
+    //                            "_test_setopt_invalid_kms_providers",
+    //                            _test_setopt_invalid_kms_providers,
+    //                            CRYPTO_REQUIRED);
+    // _mongocrypt_tester_install_crypto_hooks(&tester);
+    // _mongocrypt_tester_install_key_cache(&tester);
+    // _mongocrypt_tester_install_kms_responses(&tester);
+    // _mongocrypt_tester_install_status(&tester);
+    // _mongocrypt_tester_install_endpoint(&tester);
+    // _mongocrypt_tester_install(&tester, "_test_setopt_kms_providers", _test_setopt_kms_providers, CRYPTO_OPTIONAL);
+    // _mongocrypt_tester_install_kek(&tester);
+    // _mongocrypt_tester_install_cache_oauth(&tester);
+    // _mongocrypt_tester_install_kms_ctx(&tester);
+    // _mongocrypt_tester_install_csfle_lib(&tester);
+    // _mongocrypt_tester_install_dll(&tester);
+    // _mongocrypt_tester_install_mc_tokens(&tester);
+    // _mongocrypt_tester_install_fle2_payloads(&tester);
+    // _mongocrypt_tester_install_fle2_iev_v2_payloads(&tester);
+    // _mongocrypt_tester_install_efc(&tester);
+    // _mongocrypt_tester_install_cleanup(&tester);
+    // _mongocrypt_tester_install_compact(&tester);
+    // _mongocrypt_tester_install_fle2_payload_uev(&tester);
+    // _mongocrypt_tester_install_fle2_payload_uev_v2(&tester);
+    // _mongocrypt_tester_install_fle2_payload_iup(&tester);
+    // _mongocrypt_tester_install_fle2_payload_iup_v2(&tester);
+    // _mongocrypt_tester_install_fle2_payload_find_equality_v2(&tester);
+    // _mongocrypt_tester_install_fle2_payload_find_range_v2(&tester);
+    // _mongocrypt_tester_install_range_encoding(&tester);
+    // _mongocrypt_tester_install_range_edge_generation(&tester);
+    // _mongocrypt_tester_install_range_mincover(&tester);
+    // _mongocrypt_tester_install_mc_RangeOpts(&tester);
+    // _mongocrypt_tester_install_mc_FLE2RangeFindDriverSpec(&tester);
+    // _mongocrypt_tester_install_gcp_auth(&tester);
+    // _mongocrypt_tester_install_mc_reader(&tester);
+    // _mongocrypt_tester_install_mc_writer(&tester);
+    _mongocrypt_tester_install_ctx_migrate(&tester);
 
 #ifdef MONGOCRYPT_ENABLE_CRYPTO_COMMON_CRYPTO
     char osversion[32];

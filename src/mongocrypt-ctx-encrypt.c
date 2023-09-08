@@ -697,7 +697,7 @@ static bool _mongo_op_markings(mongocrypt_ctx_t *ctx, mongocrypt_binary_t *out) 
     return true;
 }
 
-static bool _collect_key_from_marking(void *ctx, _mongocrypt_buffer_t *in, mongocrypt_status_t *status) {
+bool _collect_key_from_marking(void *ctx, _mongocrypt_buffer_t *in, mongocrypt_status_t *status) {
     _mongocrypt_marking_t marking;
     _mongocrypt_key_broker_t *kb;
     bool res;
@@ -1067,7 +1067,7 @@ fail:
     return ret;
 }
 
-static bool
+bool
 _replace_marking_with_ciphertext(void *ctx, _mongocrypt_buffer_t *in, bson_value_t *out, mongocrypt_status_t *status) {
     _mongocrypt_marking_t marking;
     bool ret;
@@ -2553,15 +2553,11 @@ bool mongocrypt_ctx_encrypt_init(mongocrypt_ctx_t *ctx, const char *db, int32_t 
     ctx->vtable.mongo_op_collinfo = _mongo_op_collinfo;
     ctx->vtable.mongo_feed_collinfo = _mongo_feed_collinfo;
     ctx->vtable.mongo_done_collinfo = _mongo_done_collinfo;
-    ctx->vtable.mongo_op_collinfo = _mongo_op_collinfo;
     ctx->vtable.mongo_op_markings = _mongo_op_markings;
     ctx->vtable.mongo_feed_markings = _mongo_feed_markings;
     ctx->vtable.mongo_done_markings = _mongo_done_markings;
     ctx->vtable.finalize = _finalize;
     ctx->vtable.cleanup = _cleanup;
-    ctx->vtable.mongo_op_collinfo = _mongo_op_collinfo;
-    ctx->vtable.mongo_feed_collinfo = _mongo_feed_collinfo;
-    ctx->vtable.mongo_done_collinfo = _mongo_done_collinfo;
     ectx->bypass_query_analysis = ctx->crypt->opts.bypass_query_analysis;
 
     if (!cmd || !cmd->data) {

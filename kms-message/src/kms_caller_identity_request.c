@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#include "kms_message/kms_caller_identity_request.h"
+
 #include "kms_message/kms_message.h"
 #include "kms_message_private.h"
 #include "kms_message/kms_b64.h"

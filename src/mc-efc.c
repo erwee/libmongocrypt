@@ -19,6 +19,34 @@
 #include "mongocrypt-private.h"
 #include "mongocrypt-util-private.h" // mc_iter_document_as_bson
 
+static bool _parse_query(mc_queryConfig_t *qc, bson_iter_t *query_iter, mongocrypt_status_t *status) {
+    bool has_queries = false;
+
+    bson_iter_t child_iter;
+    bson_iter_recurse(query_iter, &child_iter);
+
+    while (bson_iter_next(&child_iter)) {
+        printf("Found a field named: %s\n", bson_iter_key(&child_iter));
+
+        if (strcmp(bson_iter_key(&child_iter), "queryType") == 0) {
+            if (!BSON_ITER_HOLDS_UTF8(&child_iter)) {
+                CLIENT_ERR("TODO got: %d", bson_iter_type(&child_iter));
+                return false;
+            }
+
+            const char *value = bson_iter_utf8(&child_iter, NULL);
+
+            if (strcmp(value, "equality") == 0) {
+                qc->type = MONGOCRYPT_QUERYCONFIG_TYPE_EQUALITY;
+            }
+        }
+
+        // TODO - parse other fields
+    }
+
+    return true;
+}
+
 /* _parse_field parses and prepends one field document to efc->fields. */
 static bool _parse_field(mc_EncryptedFieldConfig_t *efc, bson_t *field, mongocrypt_status_t *status) {
     bool has_queries = false;
@@ -52,8 +80,18 @@ static bool _parse_field(mc_EncryptedFieldConfig_t *efc, bson_t *field, mongocry
     }
     field_path = bson_iter_utf8(&field_iter, NULL /* length */);
 
+    mc_queryConfig_t qc;
+    memset(&qc, 0, sizeof(qc));
+
+
+
     if (bson_iter_init_find(&field_iter, field, "queries")) {
         has_queries = true;
+        BSON_ASSERT(!BSON_ITER_HOLDS_ARRAY(&field_iter)); // TODO remove array limit
+
+        if (!_parse_query(&qc, &field_iter, status)) {
+            return false;
+        }
     }
 
     /* Prepend a new mc_EncryptedField_t */
@@ -62,6 +100,7 @@ static bool _parse_field(mc_EncryptedFieldConfig_t *efc, bson_t *field, mongocry
     ef->path = bson_strdup(field_path);
     ef->next = efc->fields;
     ef->has_queries = has_queries;
+    memcpy(&ef->query, &qc, sizeof(qc));
     efc->fields = ef;
 
     return true;

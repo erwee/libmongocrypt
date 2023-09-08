@@ -34,6 +34,7 @@ typedef enum {
     _MONGOCRYPT_TYPE_CREATE_DATA_KEY,
     _MONGOCRYPT_TYPE_REWRAP_MANY_DATAKEY,
     _MONGOCRYPT_TYPE_COMPACT,
+    _MONGOCRYPT_TYPE_MIGRATE,
 } _mongocrypt_ctx_type_t;
 
 typedef enum {
@@ -186,6 +187,39 @@ typedef struct {
     _mongocrypt_buffer_t original_doc;
     _mongocrypt_buffer_t decrypted_doc;
 } _mongocrypt_ctx_decrypt_t;
+
+
+typedef struct {
+    mongocrypt_ctx_t parent;
+
+    char *coll_name;
+    char *db_name;
+    char *ns;
+
+    _mongocrypt_buffer_t list_collections_filter;
+    _mongocrypt_buffer_t schema;
+
+    // TODO - rename these and comment them
+    _mongocrypt_buffer_t original_cmd;
+    _mongocrypt_buffer_t marked_cmd;
+    _mongocrypt_buffer_t encrypted_cmd;
+    _mongocrypt_buffer_t key_id;
+
+    bool used_local_schema;
+    /* collinfo_has_siblings is true if the schema came from a remote JSON
+     * schema, and there were siblings. */
+    bool collinfo_has_siblings;
+
+    /* encrypted_field_config is set when:
+     * 1. <db_name>.<coll_name> is present in an encrypted_field_config_map.
+     * 2. (TODO MONGOCRYPT-414) The collection has encryptedFields in the
+     * response to listCollections. encrypted_field_config is true if and only if
+     * encryption is using FLE 2.0.
+     */
+    _mongocrypt_buffer_t encrypted_field_config;
+    mc_EncryptedFieldConfig_t efc;
+
+} _mongocrypt_ctx_migrate_t;
 
 typedef struct {
     mongocrypt_ctx_t parent;

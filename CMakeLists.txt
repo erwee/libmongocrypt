@@ -129,6 +129,7 @@ set (MONGOCRYPT_SOURCES
    src/mongocrypt-crypto.c
    src/mongocrypt-ctx-datakey.c
    src/mongocrypt-ctx-decrypt.c
+   src/mongocrypt-ctx-migrate.c
    src/mongocrypt-ctx-encrypt.c
    src/mongocrypt-ctx-rewrap-many-datakey.c
    src/mongocrypt-ctx.c
@@ -282,9 +283,9 @@ target_link_libraries (
    mongocrypt
    PRIVATE
       _mongocrypt::libbson_for_shared
-      kms_message_static
       $<BUILD_INTERFACE:mongo::mlib>
    PUBLIC
+      kms_message_static
       mongocrypt::platform
       ${maybe_dfp_library}
    )
@@ -294,8 +295,8 @@ if (NOT USE_SHARED_LIBBSON)
       message ("compiling with unexported symbols list to hide bson symbols")
       set_target_properties (mongocrypt PROPERTIES LINK_FLAGS "-Wl,-unexported_symbols_list,\"${CMAKE_CURRENT_SOURCE_DIR}/cmake/libmongocrypt-hidden-symbols.txt\"")
    elseif (UNIX)
-      message ("compiling with version map to version and hide bson symbols")
-      set_target_properties (mongocrypt PROPERTIES LINK_FLAGS "-Wl,--version-script=\"${CMAKE_CURRENT_SOURCE_DIR}/cmake/libmongocrypt-hidden-symbols.map\"")
+      # message ("compiling with version map to version and hide bson symbols")
+      # set_target_properties (mongocrypt PROPERTIES LINK_FLAGS "-Wl,--version-script=\"${CMAKE_CURRENT_SOURCE_DIR}/cmake/libmongocrypt-hidden-symbols.map\"")
    endif ()
 endif ()
 
@@ -482,6 +483,7 @@ set (TEST_MONGOCRYPT_SOURCES
    test/test-mongocrypt-csfle-lib.c
    test/test-mongocrypt-ctx-decrypt.c
    test/test-mongocrypt-ctx-encrypt.c
+   test/test-mongocrypt-ctx-migrate.c
    test/test-mongocrypt-ctx-rewrap-many-datakey.c
    test/test-mongocrypt-ctx-setopt.c
    test/test-mongocrypt-datakey.c

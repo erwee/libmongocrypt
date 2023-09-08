@@ -9,7 +9,7 @@ set (CMAKE_C_STANDARD 90)
 include (CheckCCompilerFlag)
 # All targets obey visibility, not just library targets.
 cmake_policy (SET CMP0063 NEW)
-set (CMAKE_C_VISIBILITY_PRESET hidden)
+# set (CMAKE_C_VISIBILITY_PRESET hidden)
 set (KMS_MESSAGE_SOURCES
    src/kms_b64.c
    src/kms_message/kms_b64.h

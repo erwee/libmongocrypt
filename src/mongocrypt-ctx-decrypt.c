@@ -371,7 +371,7 @@ fail:
     return ret;
 }
 
-static bool _replace_ciphertext_with_plaintext(void *ctx,
+bool _replace_ciphertext_with_plaintext(void *ctx,
                                                _mongocrypt_buffer_t *in,
                                                bson_value_t *out,
                                                mongocrypt_status_t *status) {
@@ -721,7 +721,7 @@ fail:
     return false;
 }
 
-static bool _collect_key_from_ciphertext(void *ctx, _mongocrypt_buffer_t *in, mongocrypt_status_t *status) {
+bool _collect_key_from_ciphertext(void *ctx, _mongocrypt_buffer_t *in, mongocrypt_status_t *status) {
     BSON_ASSERT_PARAM(ctx);
     BSON_ASSERT_PARAM(in);
     BSON_ASSERT(in->data);

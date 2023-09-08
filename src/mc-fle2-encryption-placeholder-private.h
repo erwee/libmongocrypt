@@ -127,7 +127,12 @@ bool mc_FLE2EncryptionPlaceholder_parse(mc_FLE2EncryptionPlaceholder_t *out,
                                         const bson_t *in,
                                         mongocrypt_status_t *status);
 
+bool mc_FLE2EncryptionPlaceholder_serialize(const mc_FLE2EncryptionPlaceholder_t* in,
+                                        bson_t *out,
+                                        mongocrypt_status_t *status);
+
 void mc_FLE2EncryptionPlaceholder_cleanup(mc_FLE2EncryptionPlaceholder_t *placeholder);
+
 
 /* mc_validate_contention is used to check that contention is a valid
  * value. contention may come from the 'cm' field in FLE2EncryptionPlaceholder

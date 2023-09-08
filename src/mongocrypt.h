@@ -941,6 +941,25 @@ MONGOCRYPT_EXPORT
 bool mongocrypt_ctx_rewrap_many_datakey_init(mongocrypt_ctx_t *ctx, mongocrypt_binary_t *filter);
 
 /**
+ * Initialize a context for migration.
+ *
+ * @param[in] ctx The @ref mongocrypt_ctx_t object.
+ * @param[in] db The database name.
+ * @param[in] db_len The byte length of @p db. Pass -1 to determine the string
+ * length with strlen (must
+ * be NULL terminated).
+ * @param[in] doc The BSON document to be migrated. The viewed data is copied.
+ * It is valid to destroy @p cmd with @ref mongocrypt_binary_destroy immediately
+ * after.
+ * @param[in] coll TODO
+ * @param[in] coll_len TODO
+ * @returns A boolean indicating success. If false, an error status is set.
+ * Retrieve it with @ref mongocrypt_ctx_status
+ */
+MONGOCRYPT_EXPORT
+bool mongocrypt_ctx_migrate_init(mongocrypt_ctx_t *ctx, const char *db, int32_t db_len, const char *coll, int32_t coll_len, mongocrypt_binary_t *doc);
+
+/**
  * Indicates the state of the @ref mongocrypt_ctx_t. Each state requires
  * different handling. See [the integration
  * guide](https://github.com/mongodb/libmongocrypt/blob/master/integrating.md#state-machine)

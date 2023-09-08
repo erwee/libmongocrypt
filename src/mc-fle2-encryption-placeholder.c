@@ -20,6 +20,7 @@
 
 #include "mc-fle2-encryption-placeholder-private.h"
 #include "mongocrypt-buffer-private.h"
+#include "mongocrypt-private.h"
 #include "mongocrypt.h"
 
 // Common logic for testing field name, tracking duplication, and presence.
@@ -159,6 +160,38 @@ fail:
     mc_FLE2EncryptionPlaceholder_cleanup(out);
     return false;
 }
+
+bool mc_FLE2EncryptionPlaceholder_serialize(const mc_FLE2EncryptionPlaceholder_t* in,
+                                        bson_t *out,
+                                        mongocrypt_status_t *status) {
+    BSON_ASSERT_PARAM(out);
+    BSON_ASSERT_PARAM(in);
+
+    // TODO - support range
+    BSON_ASSERT(in->algorithm != MONGOCRYPT_FLE2_ALGORITHM_RANGE);
+
+    // Serialize type as "t"
+    BSON_APPEND_INT32(out, "t", in->type);
+
+    // Serialize algorithm as "a"
+    BSON_APPEND_INT32(out, "a", in->algorithm);
+
+    // Serialize index key as "ki"
+    BSON_APPEND_BINARY(out, "ki", BSON_SUBTYPE_UUID, in->index_key_id.data, in->index_key_id.len);
+
+    // Serialize user key as "ku"
+    BSON_APPEND_BINARY(out, "ku", BSON_SUBTYPE_UUID, in->user_key_id.data, in->user_key_id.len);
+
+    // Serialize the value as "v"
+    bson_append_iter(out, "v", 1, &in->v_iter);
+
+    // Serialize Contention factor as "cm"
+    BSON_APPEND_INT64(out, "cm", in->maxContentionCounter);
+
+    return true;
+}
+
+
 
 void mc_FLE2EncryptionPlaceholder_cleanup(mc_FLE2EncryptionPlaceholder_t *placeholder) {
     BSON_ASSERT_PARAM(placeholder);

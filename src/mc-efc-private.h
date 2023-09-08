@@ -19,10 +19,25 @@
 #include "mongocrypt-buffer-private.h"
 #include <bson/bson.h>
 
+
+typedef enum { MONGOCRYPT_QUERYCONFIG_TYPE_EQUALITY = 1, MONGOCRYPT_QUERYCONFIG_TYPE_RANGEPREVIEW = 2 } mongocrypt_queryconfig_type_t;
+
+
+typedef struct _mc_queryConfig_t {
+    mongocrypt_queryconfig_type_t type;
+    uint64_t contention;
+    // TODO - min
+    // TODO - max
+    uint64_t sparsity;
+    uint64_t precision;
+} mc_queryConfig_t;
+
+
 typedef struct _mc_EncryptedField_t {
     bool has_queries;
     _mongocrypt_buffer_t keyId;
     const char *path;
+    mc_queryConfig_t query;
     struct _mc_EncryptedField_t *next;
 } mc_EncryptedField_t;
 
