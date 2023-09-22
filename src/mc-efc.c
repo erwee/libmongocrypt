@@ -38,6 +38,8 @@ static bool _parse_query(mc_queryConfig_t *qc, bson_iter_t *query_iter, mongocry
 
             if (strcmp(value, "equality") == 0) {
                 qc->type = MONGOCRYPT_QUERYCONFIG_TYPE_EQUALITY;
+            } else if (strcmp(value, "rangePreview") == 0) {
+                qc->type = MONGOCRYPT_QUERYCONFIG_TYPE_RANGEPREVIEW;
             }
         }
 

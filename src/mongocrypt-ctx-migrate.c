@@ -632,6 +632,80 @@ bool _replace_ciphertext_with_plaintext(void *ctx,
                                         bson_value_t *out,
                                         mongocrypt_status_t *status);
 
+bool tryDecryptField(migrate_transform_state *state,
+                     bson_iter_t* iter,
+                     bson_t *outDoc,
+                     mongocrypt_status_t *status) {
+    if (!BSON_ITER_HOLDS_BINARY(iter)) {
+        bson_append_iter(outDoc, NULL, 0, iter);
+        return true;
+    }
+
+    _mongocrypt_buffer_t value;
+
+    BSON_ASSERT(_mongocrypt_buffer_from_binary_iter(&value, iter));
+    if (value.subtype != BSON_SUBTYPE_ENCRYPTED || value.len == 0) {
+        bson_append_iter(outDoc, NULL, 0, iter);
+        return false;
+    }
+
+    mc_fle_blob_subtype_t actualSubType = value.data[0];
+
+    // TOOD: if actualSubType is not a FLE type, append element as is
+
+    bson_value_t out;
+    BSON_ASSERT(_replace_ciphertext_with_plaintext((void *)&(state->mctx->parent.kb), &value, &out, status));
+    bson_append_value(outDoc, bson_iter_key(iter), -1, &out);
+    return true;
+}
+
+void migrateValue(bson_value_t* value, mc_EncryptedField_t *ef, bson_iter_t *iter, bson_t *outDoc, mongocrypt_status_t *status) {
+
+    bson_t holder;
+    bson_init(&holder);
+
+    BSON_APPEND_VALUE(&holder, "v", value);
+
+    bson_iter_t holder_iter;
+    bson_iter_init(&holder_iter, &holder);
+    bson_iter_next(&holder_iter); // position on the first element
+
+    mc_fle_blob_subtype_t expectedSubType = getExpectedSubType(ef);
+
+    // Generate a marking
+    mc_FLE2EncryptionPlaceholder_t ep;
+    mc_FLE2EncryptionPlaceholder_init(&ep);
+    ep.type = MONGOCRYPT_FLE2_PLACEHOLDER_TYPE_INSERT;
+    ep.v_iter = holder_iter;
+    ep.index_key_id = ef->keyId;
+    ep.user_key_id = ef->keyId;
+    if (expectedSubType == MC_SUBTYPE_FLE2IndexedEqualityEncryptedValueV2) {
+        ep.algorithm = MONGOCRYPT_FLE2_ALGORITHM_EQUALITY;
+        ep.maxContentionCounter = ef->query.contention;
+    } else if (expectedSubType == MC_SUBTYPE_FLE2IndexedRangeEncryptedValueV2) {
+        ep.algorithm = MONGOCRYPT_FLE2_ALGORITHM_RANGE;
+        ep.maxContentionCounter = ef->query.contention;
+        ep.sparsity = ef->query.sparsity;
+    } else {
+        ep.algorithm = MONGOCRYPT_FLE2_ALGORITHM_UNINDEXED;
+    }
+
+
+    bson_t ep_value;
+    bson_init(&ep_value);
+
+    mc_FLE2EncryptionPlaceholder_serialize(&ep, &ep_value, status);
+
+
+    size_t buffer_len = ep_value.len + 1;
+    char* buffer = bson_malloc(buffer_len);
+    buffer[0] = MC_SUBTYPE_FLE2EncryptionPlaceholder;
+    memcpy( buffer + 1, bson_get_data(&ep_value), ep_value.len);
+
+    bson_append_binary(outDoc, bson_iter_key(iter), strlen(bson_iter_key(iter)), BSON_SUBTYPE_ENCRYPTED, buffer, buffer_len );
+
+}
+
 // TODO - generate marking
 // TODO -0 chang return type
 bool migrateField(migrate_transform_state *state,
@@ -639,11 +713,11 @@ bool migrateField(migrate_transform_state *state,
                   bson_iter_t *iter,
                   bson_t *outDoc,
                   mongocrypt_status_t *status) {
+
     // Ignore non-bindata
     if (!BSON_ITER_HOLDS_BINARY(iter)) {
-        // TODO - handle encryption
-        BSON_ASSERT(false);
-        return false;
+        migrateValue(bson_iter_value(iter), ef, iter, outDoc, status);
+        return true;
     }
 
     _mongocrypt_buffer_t value;
@@ -677,41 +751,10 @@ bool migrateField(migrate_transform_state *state,
 
     // Encrypt BSON field to QE
     //
-    if(expectedSubType == MC_SUBTYPE_FLE2IndexedEqualityEncryptedValueV2) {
-
-        bson_t holder;
-        bson_init(&holder);
-
-        BSON_APPEND_VALUE(&holder, "v", &out);
-
-        bson_iter_t holder_iter;
-        bson_iter_init(&holder_iter, &holder);
-        bson_iter_next(&holder_iter); // position on the first element
-
-        // Generate a marking
-        mc_FLE2EncryptionPlaceholder_t ep;
-        ep.type = MONGOCRYPT_FLE2_PLACEHOLDER_TYPE_INSERT;
-        ep.algorithm = MONGOCRYPT_FLE2_ALGORITHM_EQUALITY;
-        ep.v_iter = holder_iter;
-        ep.index_key_id = ef->keyId;
-        ep.user_key_id = ef->keyId;
-        ep.maxContentionCounter = ef->query.contention;
-
-
-
-        bson_t ep_value;
-        bson_init(&ep_value);
-
-        mc_FLE2EncryptionPlaceholder_serialize(&ep, &ep_value, status);
-
-
-        size_t buffer_len = ep_value.len + 1;
-        char* buffer = bson_malloc(buffer_len);
-        buffer[0] = MC_SUBTYPE_FLE2EncryptionPlaceholder;
-        memcpy( buffer + 1, bson_get_data(&ep_value), ep_value.len);
-
-
-        bson_append_binary(outDoc, bson_iter_key(iter), strlen(bson_iter_key(iter)), BSON_SUBTYPE_ENCRYPTED, buffer, buffer_len );
+    if(expectedSubType == MC_SUBTYPE_FLE2IndexedEqualityEncryptedValueV2 ||
+        expectedSubType == MC_SUBTYPE_FLE2IndexedRangeEncryptedValueV2 ||
+        expectedSubType == MC_SUBTYPE_FLE2UnindexedEncryptedValueV2) {
+        migrateValue(&out, ef, iter, outDoc, status);
     }
 
     else {
@@ -779,7 +822,7 @@ void transformDocumentInt(bson_iter_t *iter,
             }
 
             if (!found_match) {
-                bson_append_iter(outDoc, NULL, 0, iter);
+                tryDecryptField(state, iter, outDoc, status);
             }
         }
     }
@@ -1443,7 +1486,9 @@ fail:
     return ret;
 }
 
+// defined in mongocrypt-ctx-decrypt.c
 bool _collect_key_from_ciphertext(void *ctx, _mongocrypt_buffer_t *in, mongocrypt_status_t *status);
+bool _collect_K_KeyIDs(void *ctx, _mongocrypt_buffer_t *in, mongocrypt_status_t *status);
 
 bool check_if_schema_present(mongocrypt_ctx_t *ctx) {
     BSON_ASSERT_PARAM(ctx);
@@ -1481,6 +1526,41 @@ bool check_if_schema_present(mongocrypt_ctx_t *ctx) {
     return true;
 }
 
+static bool _check_for_K_KeyId(mongocrypt_ctx_t *ctx) {
+    BSON_ASSERT_PARAM(ctx);
+
+    if (ctx->kb.state != KB_DONE) {
+        return true;
+    }
+
+    if (!_mongocrypt_key_broker_restart(&ctx->kb)) {
+        _mongocrypt_key_broker_status(&ctx->kb, ctx->status);
+        return _mongocrypt_ctx_fail(ctx);
+    }
+
+    bson_t as_bson;
+    bson_iter_t iter;
+    _mongocrypt_ctx_migrate_t *dctx = (_mongocrypt_ctx_migrate_t *)ctx;
+    if (!_mongocrypt_buffer_to_bson(&dctx->original_cmd, &as_bson)) {
+        return _mongocrypt_ctx_fail_w_msg(ctx, "error converting original_cmd to bson");
+    }
+    bson_iter_init(&iter, &as_bson);
+
+    if (!_mongocrypt_traverse_binary_in_bson(_collect_K_KeyIDs,
+                                             &ctx->kb,
+                                             TRAVERSE_MATCH_CIPHERTEXT,
+                                             &iter,
+                                             ctx->status)) {
+        return _mongocrypt_ctx_fail(ctx);
+    }
+
+    if (!_mongocrypt_key_broker_requests_done(&ctx->kb)) {
+        _mongocrypt_key_broker_status(&ctx->kb, ctx->status);
+        return _mongocrypt_ctx_fail(ctx);
+    }
+    return true;
+}
+
 bool handle_encryption_ready(mongocrypt_ctx_t *ctx) {
     // BSON_ASSERT(ctx->state == MONGOCRYPT_CTX_NEED_MONGO_MARKINGS);
     // Key broke says we are ready when it gets all the keys
@@ -1511,6 +1591,10 @@ static bool _mongo_done_keys(mongocrypt_ctx_t *ctx) {
     BSON_ASSERT_PARAM(ctx);
 
     (void)_mongocrypt_key_broker_docs_done(&ctx->kb);
+    if (!_check_for_K_KeyId(ctx)) {
+        return false;
+    }
+
     if (!_mongocrypt_ctx_state_from_key_broker(ctx)) {
         return false;
     }
@@ -1545,7 +1629,7 @@ bool mongocrypt_ctx_migrate_init(mongocrypt_ctx_t *ctx,
     }
 
     ectx = (_mongocrypt_ctx_migrate_t *)ctx;
-    ctx->type = _MONGOCRYPT_TYPE_ENCRYPT;
+    ctx->type = _MONGOCRYPT_TYPE_MIGRATE;
     ctx->vtable.mongo_op_collinfo = _mongo_op_collinfo;
     ctx->vtable.mongo_feed_collinfo = _mongo_feed_collinfo;
     ctx->vtable.mongo_done_collinfo = _mongo_done_collinfo;
@@ -1621,6 +1705,10 @@ bool mongocrypt_ctx_migrate_init(mongocrypt_ctx_t *ctx,
     }
 
     (void)_mongocrypt_key_broker_requests_done(&ctx->kb);
+
+    if (!_check_for_K_KeyId(ctx)) {
+        return false;
+    }
 
     if (!_mongocrypt_ctx_state_from_key_broker(ctx)) {
         return false;

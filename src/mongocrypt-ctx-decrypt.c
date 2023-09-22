@@ -101,6 +101,32 @@ fail:
     return ret;
 }
 
+static void printUUID(const char* keyName, const _mongocrypt_buffer_t* uuid) {
+    const char* hex = "0123456789abcdef";
+    assert(uuid->len == 16);
+    char buf[37];
+    int idx = 0;
+    for (int i = 0; i < uuid->len; i++) {
+        switch(idx) {
+            case 8:
+            case 13:
+            case 18:
+            case 23:
+                buf[idx] = '-';
+                idx++;
+                break;
+            default:
+                break;
+        }
+        uint8_t hi = (uint8_t)uuid->data[i] >> 4;
+        uint8_t lo = (uint8_t)uuid->data[i] & 0xF;
+        buf[idx++] = hex[hi];
+        buf[idx++] = hex[lo];
+    }
+    buf[idx] = '\0';
+    printf("Got %s: %s\n", keyName, buf);
+}
+
 static bool _replace_FLE2IndexedEncryptedValueV2_with_plaintext(void *ctx,
                                                                 _mongocrypt_buffer_t *in,
                                                                 bson_value_t *out,
@@ -126,12 +152,14 @@ static bool _replace_FLE2IndexedEncryptedValueV2_with_plaintext(void *ctx,
     CHECK_AND_RETURN(mc_FLE2IndexedEncryptedValueV2_parse(iev, in, status));
     const _mongocrypt_buffer_t *S_KeyId = mc_FLE2IndexedEncryptedValueV2_get_S_KeyId(iev, status);
     CHECK_AND_RETURN(S_KeyId);
+    printUUID("S_KEYID", S_KeyId);
     CHECK_AND_RETURN_KB_STATUS(_mongocrypt_key_broker_decrypted_key_by_id(kb, S_KeyId, &S_Key));
 
     // Use S_Key to decrypt envelope and get to K_KeyId.
     CHECK_AND_RETURN(mc_FLE2IndexedEncryptedValueV2_add_S_Key(kb->crypt->crypto, iev, &S_Key, status));
     const _mongocrypt_buffer_t *K_KeyId = mc_FLE2IndexedEncryptedValueV2_get_K_KeyId(iev, status);
     CHECK_AND_RETURN(K_KeyId);
+    printUUID("K_KEYID", K_KeyId);
     CHECK_AND_RETURN_KB_STATUS(_mongocrypt_key_broker_decrypted_key_by_id(kb, K_KeyId, &K_Key));
 
     // Decrypt the actual data value using K_Key.
@@ -568,7 +596,7 @@ fail:
     return ret;
 }
 
-static bool _collect_K_KeyIDs(void *ctx, _mongocrypt_buffer_t *in, mongocrypt_status_t *status) {
+bool _collect_K_KeyIDs(void *ctx, _mongocrypt_buffer_t *in, mongocrypt_status_t *status) {
     BSON_ASSERT_PARAM(in);
     BSON_ASSERT(in->data);
 
