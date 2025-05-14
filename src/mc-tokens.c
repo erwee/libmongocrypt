@@ -29,7 +29,9 @@
         _mongocrypt_buffer_t data;                                                                                     \
     };                                                                                                                 \
     /* Data-getter */                                                                                                  \
-    const _mongocrypt_buffer_t *BSON_CONCAT(Prefix, _get)(const T *self) { return &self->data; }                       \
+    const _mongocrypt_buffer_t *BSON_CONCAT(Prefix, _get)(const T *self) {                                             \
+        return &self->data;                                                                                            \
+    }                                                                                                                  \
     /* Destructor */                                                                                                   \
     void BSON_CONCAT(Prefix, _destroy)(T * self) {                                                                     \
         if (!self) {                                                                                                   \
@@ -196,6 +198,7 @@ IMPL_TOKEN_NEW_CONST(mc_AnchorPaddingValueToken, mc_AnchorPaddingTokenRoot_get(a
 #define TEXT_SUBSTRING_ID 2
 #define TEXT_SUFFIX_ID 3
 #define TEXT_PREFIX_ID 4
+#define TEXT_KEYWORD_ID 5
 
 DEF_TOKEN_TYPE(mc_EDCTextExactToken, const mc_EDCToken_t *edcToken)
 IMPL_TOKEN_NEW_CONST(mc_EDCTextExactToken, mc_EDCToken_get(edcToken), TEXT_EXACT_ID)
@@ -205,6 +208,8 @@ DEF_TOKEN_TYPE(mc_EDCTextSuffixToken, const mc_EDCToken_t *edcToken)
 IMPL_TOKEN_NEW_CONST(mc_EDCTextSuffixToken, mc_EDCToken_get(edcToken), TEXT_SUFFIX_ID)
 DEF_TOKEN_TYPE(mc_EDCTextPrefixToken, const mc_EDCToken_t *edcToken)
 IMPL_TOKEN_NEW_CONST(mc_EDCTextPrefixToken, mc_EDCToken_get(edcToken), TEXT_PREFIX_ID)
+DEF_TOKEN_TYPE(mc_EDCTextKeywordToken, const mc_EDCToken_t *edcToken)
+IMPL_TOKEN_NEW_CONST(mc_EDCTextKeywordToken, mc_EDCToken_get(edcToken), TEXT_KEYWORD_ID)
 
 DEF_TOKEN_TYPE(mc_ESCTextExactToken, const mc_ESCToken_t *escToken)
 IMPL_TOKEN_NEW_CONST(mc_ESCTextExactToken, mc_ESCToken_get(escToken), TEXT_EXACT_ID)
@@ -214,6 +219,8 @@ DEF_TOKEN_TYPE(mc_ESCTextSuffixToken, const mc_ESCToken_t *escToken)
 IMPL_TOKEN_NEW_CONST(mc_ESCTextSuffixToken, mc_ESCToken_get(escToken), TEXT_SUFFIX_ID)
 DEF_TOKEN_TYPE(mc_ESCTextPrefixToken, const mc_ESCToken_t *escToken)
 IMPL_TOKEN_NEW_CONST(mc_ESCTextPrefixToken, mc_ESCToken_get(escToken), TEXT_PREFIX_ID)
+DEF_TOKEN_TYPE(mc_ESCTextKeywordToken, const mc_ESCToken_t *escToken)
+IMPL_TOKEN_NEW_CONST(mc_ESCTextKeywordToken, mc_ESCToken_get(escToken), TEXT_KEYWORD_ID)
 
 DEF_TOKEN_TYPE(mc_ServerTextExactToken, const mc_ServerTokenDerivationLevel1Token_t *serverTokenDerivationLevel1Token)
 IMPL_TOKEN_NEW_CONST(mc_ServerTextExactToken,
@@ -232,6 +239,10 @@ DEF_TOKEN_TYPE(mc_ServerTextPrefixToken, const mc_ServerTokenDerivationLevel1Tok
 IMPL_TOKEN_NEW_CONST(mc_ServerTextPrefixToken,
                      mc_ServerTokenDerivationLevel1Token_get(serverTokenDerivationLevel1Token),
                      TEXT_PREFIX_ID)
+DEF_TOKEN_TYPE(mc_ServerTextKeywordToken, const mc_ServerTokenDerivationLevel1Token_t *serverTokenDerivationLevel1Token)
+IMPL_TOKEN_NEW_CONST(mc_ServerTextKeywordToken,
+                     mc_ServerTokenDerivationLevel1Token_get(serverTokenDerivationLevel1Token),
+                     TEXT_KEYWORD_ID)
 
 DEF_TOKEN_TYPE(mc_EDCTextExactDerivedFromDataToken,
                const mc_EDCTextExactToken_t *edcTextExactToken,
@@ -249,6 +260,10 @@ DEF_TOKEN_TYPE(mc_EDCTextPrefixDerivedFromDataToken,
                const mc_EDCTextPrefixToken_t *edcTextPrefixToken,
                const _mongocrypt_buffer_t *v)
 IMPL_TOKEN_NEW(mc_EDCTextPrefixDerivedFromDataToken, mc_EDCTextPrefixToken_get(edcTextPrefixToken), v)
+DEF_TOKEN_TYPE(mc_EDCTextKeywordDerivedFromDataToken,
+               const mc_EDCTextKeywordToken_t *edcTextKeywordToken,
+               const _mongocrypt_buffer_t *v)
+IMPL_TOKEN_NEW(mc_EDCTextKeywordDerivedFromDataToken, mc_EDCTextKeywordToken_get(edcTextKeywordToken), v)
 
 DEF_TOKEN_TYPE(mc_EDCTextExactDerivedFromDataTokenAndContentionFactorToken,
                const mc_EDCTextExactDerivedFromDataToken_t *edcTextExactToken,
@@ -274,6 +289,12 @@ DEF_TOKEN_TYPE(mc_EDCTextPrefixDerivedFromDataTokenAndContentionFactorToken,
 IMPL_TOKEN_NEW_CONST(mc_EDCTextPrefixDerivedFromDataTokenAndContentionFactorToken,
                      mc_EDCTextPrefixDerivedFromDataToken_get(edcTextPrefixToken),
                      u)
+DEF_TOKEN_TYPE(mc_EDCTextKeywordDerivedFromDataTokenAndContentionFactorToken,
+               const mc_EDCTextKeywordDerivedFromDataToken_t *edcTextKeywordToken,
+               uint64_t u)
+IMPL_TOKEN_NEW_CONST(mc_EDCTextKeywordDerivedFromDataTokenAndContentionFactorToken,
+                     mc_EDCTextKeywordDerivedFromDataToken_get(edcTextKeywordToken),
+                     u)
 
 DEF_TOKEN_TYPE(mc_ESCTextExactDerivedFromDataToken,
                const mc_ESCTextExactToken_t *escTextExactToken,
@@ -291,6 +312,11 @@ DEF_TOKEN_TYPE(mc_ESCTextPrefixDerivedFromDataToken,
                const mc_ESCTextPrefixToken_t *escTextPrefixToken,
                const _mongocrypt_buffer_t *v)
 IMPL_TOKEN_NEW(mc_ESCTextPrefixDerivedFromDataToken, mc_ESCTextPrefixToken_get(escTextPrefixToken), v)
+
+DEF_TOKEN_TYPE(mc_ESCTextKeywordDerivedFromDataToken,
+               const mc_ESCTextKeywordToken_t *escTextKeywordToken,
+               const _mongocrypt_buffer_t *v)
+IMPL_TOKEN_NEW(mc_ESCTextKeywordDerivedFromDataToken, mc_ESCTextKeywordToken_get(escTextKeywordToken), v)
 
 DEF_TOKEN_TYPE(mc_ESCTextExactDerivedFromDataTokenAndContentionFactorToken,
                const mc_ESCTextExactDerivedFromDataToken_t *escTextExactToken,
@@ -316,6 +342,12 @@ DEF_TOKEN_TYPE(mc_ESCTextPrefixDerivedFromDataTokenAndContentionFactorToken,
 IMPL_TOKEN_NEW_CONST(mc_ESCTextPrefixDerivedFromDataTokenAndContentionFactorToken,
                      mc_ESCTextPrefixDerivedFromDataToken_get(escTextPrefixToken),
                      u)
+DEF_TOKEN_TYPE(mc_ESCTextKeywordDerivedFromDataTokenAndContentionFactorToken,
+               const mc_ESCTextKeywordDerivedFromDataToken_t *escTextKeywordToken,
+               uint64_t u)
+IMPL_TOKEN_NEW_CONST(mc_ESCTextKeywordDerivedFromDataTokenAndContentionFactorToken,
+                     mc_ESCTextKeywordDerivedFromDataToken_get(escTextKeywordToken),
+                     u)
 
 DEF_TOKEN_TYPE(mc_ServerTextExactDerivedFromDataToken,
                const mc_ServerTextExactToken_t *serverTextExactToken,
@@ -333,3 +365,7 @@ DEF_TOKEN_TYPE(mc_ServerTextPrefixDerivedFromDataToken,
                const mc_ServerTextPrefixToken_t *serverTextPrefixToken,
                const _mongocrypt_buffer_t *v)
 IMPL_TOKEN_NEW(mc_ServerTextPrefixDerivedFromDataToken, mc_ServerTextPrefixToken_get(serverTextPrefixToken), v)
+DEF_TOKEN_TYPE(mc_ServerTextKeywordDerivedFromDataToken,
+               const mc_ServerTextKeywordToken_t *serverTextKeywordToken,
+               const _mongocrypt_buffer_t *v)
+IMPL_TOKEN_NEW(mc_ServerTextKeywordDerivedFromDataToken, mc_ServerTextKeywordToken_get(serverTextKeywordToken), v)
