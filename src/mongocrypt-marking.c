@@ -2178,6 +2178,83 @@ fail:
     return res;
 }
 
+static bool _mongocrypt_fle2_placeholder_to_find_ciphertextForKeywordSearch(_mongocrypt_key_broker_t *kb,
+                                                                            _mongocrypt_marking_t *marking,
+                                                                            _mongocrypt_ciphertext_t *ciphertext,
+                                                                            mongocrypt_status_t *status) {
+    BSON_ASSERT_PARAM(kb);
+    BSON_ASSERT_PARAM(marking);
+    BSON_ASSERT_PARAM(ciphertext);
+    BSON_ASSERT(kb->crypt);
+    BSON_ASSERT(marking->type == MONGOCRYPT_MARKING_FLE2_ENCRYPTION);
+
+    bool res = false;
+    mc_FLE2EncryptionPlaceholder_t *placeholder = &marking->u.fle2;
+    BSON_ASSERT(placeholder->type == MONGOCRYPT_FLE2_PLACEHOLDER_TYPE_FIND);
+    BSON_ASSERT(placeholder->algorithm == MONGOCRYPT_FLE2_ALGORITHM_KEYWORD_SEARCH);
+
+    mc_FLE2FindEqualityPayloadV2_t payload;
+    mc_FLE2FindEqualityPayloadV2_init(&payload);
+
+    _FLE2EncryptedPayloadCommon_t common = {{0}};
+    _mongocrypt_buffer_t asBsonValue = {0};
+    uint32_t str_len;
+    const char *str = bson_iter_utf8(&placeholder->v_iter, &str_len);
+    _mongocrypt_buffer_init(&asBsonValue);
+    _mongocrypt_buffer_copy_from_string_as_bson_value(&asBsonValue, str, str_len);
+
+    // Start the token derivations
+    if (!_get_tokenKey(kb, &placeholder->index_key_id, &common.tokenKey, status)) {
+        goto fail;
+    }
+
+    common.collectionsLevel1Token = mc_CollectionsLevel1Token_new(kb->crypt->crypto, &common.tokenKey, status);
+    if (!common.collectionsLevel1Token) {
+        CLIENT_ERR("unable to derive collectionLevel1Token");
+        goto fail;
+    }
+
+    common.serverTokenDerivationLevel1Token =
+        mc_ServerTokenDerivationLevel1Token_new(kb->crypt->crypto, &common.tokenKey, status);
+    if (!common.serverTokenDerivationLevel1Token) {
+        CLIENT_ERR("unable to derive serverTokenDerivationLevel1Token");
+        goto fail;
+    }
+
+    mc_TextKeywordFindTokenSet_t ts;
+    memset(&ts, 0, sizeof(mc_TextKeywordFindTokenSet_t));
+    if (!_fle2_generate_TextKeywordFindTokenSet(kb,
+                                                &ts,
+                                                &asBsonValue,
+                                                common.collectionsLevel1Token,
+                                                common.serverTokenDerivationLevel1Token,
+                                                status)) {
+        goto fail;
+    }
+
+    payload.maxContentionFactor = placeholder->maxContentionFactor;
+    _mongocrypt_buffer_steal(&payload.edcDerivedToken, &ts.edcDerivedToken);
+    _mongocrypt_buffer_steal(&payload.escDerivedToken, &ts.escDerivedToken);
+    _mongocrypt_buffer_steal(&payload.serverDerivedFromDataToken, &ts.serverDerivedFromDataToken);
+
+    {
+        bson_t out;
+        bson_init(&out);
+        mc_FLE2FindEqualityPayloadV2_serialize(&payload, &out);
+        _mongocrypt_buffer_steal_from_bson(&ciphertext->data, &out);
+    }
+    // Do not set ciphertext->original_bson_type and ciphertext->key_id. They are
+    // not used for FLE2FindKeywordPayload.
+    ciphertext->blob_subtype = MC_SUBTYPE_FLE2FindKeywordPayload;
+
+    res = true;
+fail:
+    _mongocrypt_buffer_cleanup(&asBsonValue);
+    _FLE2EncryptedPayloadCommon_cleanup(&common);
+    mc_FLE2FindEqualityPayloadV2_cleanup(&payload);
+    return res;
+}
+
 static bool _mongocrypt_fle2_placeholder_to_find_ciphertextForTextSearch(_mongocrypt_key_broker_t *kb,
                                                                          _mongocrypt_marking_t *marking,
                                                                          _mongocrypt_ciphertext_t *ciphertext,
@@ -2469,8 +2546,7 @@ bool _mongocrypt_marking_to_ciphertext(void *ctx,
                                                                                                 ciphertext,
                                                                                                 status);
             case MONGOCRYPT_FLE2_PLACEHOLDER_TYPE_FIND: {
-                CLIENT_ERR("Keyword find not yet supported");
-                return false;
+                return _mongocrypt_fle2_placeholder_to_find_ciphertextForKeywordSearch(kb, marking, ciphertext, status);
             }
             default: {
                 CLIENT_ERR("unexpected fle2 type: %d", (int)marking->u.fle2.type);
