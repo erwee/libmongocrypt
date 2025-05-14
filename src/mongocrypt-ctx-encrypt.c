@@ -576,7 +576,7 @@ static bool _mongocrypt_fle2_insert_update_find(mc_fle_blob_subtype_t subtype) {
     return (subtype == MC_SUBTYPE_FLE2InsertUpdatePayload) || (subtype == MC_SUBTYPE_FLE2InsertUpdatePayloadV2)
         || (subtype == MC_SUBTYPE_FLE2FindEqualityPayload) || (subtype == MC_SUBTYPE_FLE2FindEqualityPayloadV2)
         || (subtype == MC_SUBTYPE_FLE2FindRangePayload) || (subtype == MC_SUBTYPE_FLE2FindRangePayloadV2)
-        || (subtype == MC_SUBTYPE_FLE2FindTextPayload);
+        || (subtype == MC_SUBTYPE_FLE2FindTextPayload) || (subtype == MC_SUBTYPE_FLE2FindKeywordPayload);
 }
 
 static bool
