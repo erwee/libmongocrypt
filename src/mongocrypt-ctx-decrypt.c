@@ -386,6 +386,7 @@ static bool _replace_ciphertext_with_plaintext(void *ctx,
     switch (in->data[0]) {
     // FLE2v2 / Text Search
     case MC_SUBTYPE_FLE2IndexedTextEncryptedValue:
+    case MC_SUBTYPE_FLE2IndexedKeywordEncryptedValue:
     case MC_SUBTYPE_FLE2IndexedEqualityEncryptedValueV2:
     case MC_SUBTYPE_FLE2IndexedRangeEncryptedValueV2:
         return _replace_FLE2IndexedEncryptedValueV2_with_plaintext(ctx, in, out, status);
@@ -506,6 +507,7 @@ static bool _collect_K_KeyID_from_FLE2IndexedEncryptedValueV2(void *ctx,
 
     BSON_ASSERT((in->data[0] == MC_SUBTYPE_FLE2IndexedEqualityEncryptedValueV2)
                 || (in->data[0] == MC_SUBTYPE_FLE2IndexedRangeEncryptedValueV2)
+                || (in->data[0] == MC_SUBTYPE_FLE2IndexedKeywordEncryptedValue)
                 || (in->data[0] == MC_SUBTYPE_FLE2IndexedTextEncryptedValue));
 
     mc_FLE2IndexedEncryptedValueV2_t *iev = mc_FLE2IndexedEncryptedValueV2_new();
@@ -580,6 +582,7 @@ static bool _collect_K_KeyIDs(void *ctx, _mongocrypt_buffer_t *in, mongocrypt_st
     switch (in->data[0]) {
     // FLE2v2 / Text Search
     case MC_SUBTYPE_FLE2IndexedTextEncryptedValue:
+    case MC_SUBTYPE_FLE2IndexedKeywordEncryptedValue:
     case MC_SUBTYPE_FLE2IndexedEqualityEncryptedValueV2:
     case MC_SUBTYPE_FLE2IndexedRangeEncryptedValueV2:
         return _collect_K_KeyID_from_FLE2IndexedEncryptedValueV2(ctx, in, status);
@@ -735,6 +738,7 @@ static bool _collect_key_from_ciphertext(void *ctx, _mongocrypt_buffer_t *in, mo
     switch (in->data[0]) {
     // FLE2v2 / Text Search
     case MC_SUBTYPE_FLE2IndexedTextEncryptedValue:
+    case MC_SUBTYPE_FLE2IndexedKeywordEncryptedValue:
     case MC_SUBTYPE_FLE2IndexedEqualityEncryptedValueV2:
     case MC_SUBTYPE_FLE2IndexedRangeEncryptedValueV2:
         return _collect_S_KeyID_from_FLE2IndexedEncryptedValueV2(ctx, in, status);
