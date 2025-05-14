@@ -799,7 +799,8 @@ static bool validate_for_keyword(const mc_FLE2IndexedEncryptedValueV2_t *iev, mo
 
 bool mc_FLE2IndexedEncryptedValueV2_validate(const mc_FLE2IndexedEncryptedValueV2_t *iev, mongocrypt_status_t *status) {
     BSON_ASSERT_PARAM(iev);
-    CHECK(iev->type == kFLE2IEVTypeEqualityV2 || iev->type == kFLE2IEVTypeRangeV2 || iev->type == kFLE2IEVTypeText,
+    CHECK(iev->type == kFLE2IEVTypeEqualityV2 || iev->type == kFLE2IEVTypeRangeV2 || iev->type == kFLE2IEVTypeText
+              || iev->type == kFLE2IEVTypeKeyword,
           "type was init or unknown");
 
     if (iev->type == kFLE2IEVTypeEqualityV2) {
