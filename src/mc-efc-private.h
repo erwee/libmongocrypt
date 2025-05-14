@@ -32,6 +32,7 @@ typedef enum _supported_query_type_flags {
     SUPPORTS_SUBSTRING_PREVIEW_QUERIES = 1 << 3,
     SUPPORTS_SUFFIX_PREVIEW_QUERIES = 1 << 4,
     SUPPORTS_PREFIX_PREVIEW_QUERIES = 1 << 5,
+    SUPPORTS_KEYWORD_QUERIES = 1 << 6,
 } supported_query_type_flags;
 
 typedef struct _mc_EncryptedField_t {

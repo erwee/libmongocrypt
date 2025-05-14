@@ -39,6 +39,8 @@ static bool _parse_query_type_string(const char *queryType, supported_query_type
         *out = SUPPORTS_SUFFIX_PREVIEW_QUERIES;
     } else if (mstr_eq_ignore_case(mstrv_lit(MONGOCRYPT_QUERY_TYPE_PREFIXPREVIEW_STR), qtv)) {
         *out = SUPPORTS_PREFIX_PREVIEW_QUERIES;
+    } else if (mstr_eq_ignore_case(mstrv_lit(MONGOCRYPT_QUERY_TYPE_KEYWORD_STR), qtv)) {
+        *out = SUPPORTS_KEYWORD_QUERIES;
     } else {
         return false;
     }
