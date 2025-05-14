@@ -114,7 +114,8 @@ bool mc_FLE2EncryptionPlaceholder_parse(mc_FLE2EncryptionPlaceholder_t *out,
             }
             algorithm = bson_iter_int32(&iter);
             if (algorithm != MONGOCRYPT_FLE2_ALGORITHM_UNINDEXED && algorithm != MONGOCRYPT_FLE2_ALGORITHM_EQUALITY
-                && algorithm != MONGOCRYPT_FLE2_ALGORITHM_RANGE && algorithm != MONGOCRYPT_FLE2_ALGORITHM_TEXT_SEARCH) {
+                && algorithm != MONGOCRYPT_FLE2_ALGORITHM_RANGE && algorithm != MONGOCRYPT_FLE2_ALGORITHM_TEXT_SEARCH
+                && algorithm != MONGOCRYPT_FLE2_ALGORITHM_KEYWORD_SEARCH) {
                 CLIENT_ERR(ERROR_PREFIX "invalid algorithm value: %d", algorithm);
                 goto fail;
             }
