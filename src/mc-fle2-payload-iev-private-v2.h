@@ -107,6 +107,7 @@ typedef enum {
     kFLE2IEVTypeEqualityV2,
     kFLE2IEVTypeRangeV2,
     kFLE2IEVTypeText,
+    kFLE2IEVTypeKeyword,
 } _mc_fle2_iev_v2_type;
 
 typedef struct _mc_FLE2IndexedEncryptedValueV2_t {

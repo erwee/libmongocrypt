@@ -289,7 +289,7 @@ uint32_t mc_FLE2IndexedEncryptedValueV2_get_edge_count(const mc_FLE2IndexedEncry
         return 0;
     }
 
-    if (!(iev->type == kFLE2IEVTypeRangeV2 || iev->type == kFLE2IEVTypeText)) {
+    if (!(iev->type == kFLE2IEVTypeRangeV2 || iev->type == kFLE2IEVTypeText || iev->type == kFLE2IEVTypeKeyword)) {
         CLIENT_ERR("mc_FLE2IndexedEncryptedValueV2_get_edge_count must be called with type range or text");
         return 0;
     }
@@ -377,8 +377,8 @@ bool mc_FLE2IndexedEncryptedValueV2_get_edge(const mc_FLE2IndexedEncryptedValueV
         return false;
     }
 
-    if (iev->type != kFLE2IEVTypeRangeV2 && iev->type != kFLE2IEVTypeText) {
-        CLIENT_ERR("mc_FLE2IndexedEncryptedValueV2_get_edge must be called with type range");
+    if (iev->type != kFLE2IEVTypeRangeV2 && iev->type != kFLE2IEVTypeText && iev->type != kFLE2IEVTypeKeyword) {
+        CLIENT_ERR("mc_FLE2IndexedEncryptedValueV2_get_edge must be called with type range or text or keyword");
         return false;
     }
 
@@ -550,6 +550,8 @@ bool mc_FLE2IndexedEncryptedValueV2_parse(mc_FLE2IndexedEncryptedValueV2_t *iev,
         iev->type = kFLE2IEVTypeRangeV2;
     } else if (iev->fle_blob_subtype == MC_SUBTYPE_FLE2IndexedTextEncryptedValue) {
         iev->type = kFLE2IEVTypeText;
+    } else if (iev->fle_blob_subtype == MC_SUBTYPE_FLE2IndexedKeywordEncryptedValue) {
+        iev->type = kFLE2IEVTypeKeyword;
     } else {
         CLIENT_ERR("mc_FLE2IndexedEncryptedValueV2_parse expected "
                    "fle_blob_subtype MC_SUBTYPE_FLE2Indexed(Equality|Range|Text)EncryptedValue[V2] got: %" PRIu8,
@@ -581,6 +583,15 @@ bool mc_FLE2IndexedEncryptedValueV2_parse(mc_FLE2IndexedEncryptedValueV2_t *iev,
                 return false;
             }
             iev->edge_count = (uint32_t)ec;
+        } else if (iev->type == kFLE2IEVTypeKeyword) {
+            uint32_t ec;
+            CHECK_AND_RETURN(mc_reader_read_u32(&reader, &ec, status));
+            if (ec == 0) {
+                CLIENT_ERR("mc_FLE2IndexedEncryptedValueV2_parse edge count must not be 0 for type "
+                           "keyword, but found edge count is 0.");
+                return false;
+            }
+            iev->edge_count = ec;
         } else if (iev->type == kFLE2IEVTypeText) {
             CHECK_AND_RETURN(mc_reader_read_u32(&reader, &iev->edge_count, status));
             CHECK_AND_RETURN(mc_reader_read_u32(&reader, &iev->substr_tag_count, status));
@@ -638,8 +649,16 @@ static inline uint32_t mc_FLE2IndexedEncryptedValueV2_serialized_length(const mc
     // if text: edge + tag counts: 12 bytes
     // ServerEncryptedValue: ServerEncryptedValue.len bytes
     // metadata: edge_count * kMetadataLen bytes
-    return iev->ServerEncryptedValue.len + 1 + UUID_LEN + 1 + (iev->type == kFLE2IEVTypeRangeV2 ? 1 : 0)
-         + (iev->type == kFLE2IEVTypeText ? 12 : 0) + iev->edge_count * kMetadataLen;
+    uint32_t counters_len = 0;
+    if (iev->type == kFLE2IEVTypeRangeV2) {
+        counters_len = sizeof(uint8_t);
+    } else if (iev->type == kFLE2IEVTypeKeyword) {
+        counters_len = sizeof(uint32_t);
+    } else if (iev->type == kFLE2IEVTypeText) {
+        counters_len = 3 * sizeof(uint32_t);
+    }
+
+    return iev->ServerEncryptedValue.len + 1 + UUID_LEN + 1 + counters_len + iev->edge_count * kMetadataLen;
 }
 
 bool mc_FLE2IndexedEncryptedValueV2_serialize(const mc_FLE2IndexedEncryptedValueV2_t *iev,
@@ -648,7 +667,8 @@ bool mc_FLE2IndexedEncryptedValueV2_serialize(const mc_FLE2IndexedEncryptedValue
     BSON_ASSERT_PARAM(iev);
     BSON_ASSERT_PARAM(buf);
 
-    if (iev->type != kFLE2IEVTypeRangeV2 && iev->type != kFLE2IEVTypeEqualityV2 && iev->type != kFLE2IEVTypeText) {
+    if (iev->type != kFLE2IEVTypeRangeV2 && iev->type != kFLE2IEVTypeEqualityV2 && iev->type != kFLE2IEVTypeText
+        && iev->type != kFLE2IEVTypeKeyword) {
         CLIENT_ERR("mc_FLE2IndexedEncryptedValueV2_serialize must be called with type equality, range, or text");
         return false;
     }
@@ -675,6 +695,8 @@ bool mc_FLE2IndexedEncryptedValueV2_serialize(const mc_FLE2IndexedEncryptedValue
         CHECK_AND_RETURN(mc_writer_write_u32(&writer, iev->edge_count, status));
         CHECK_AND_RETURN(mc_writer_write_u32(&writer, iev->substr_tag_count, status));
         CHECK_AND_RETURN(mc_writer_write_u32(&writer, iev->suffix_tag_count, status));
+    } else if (iev->type == kFLE2IEVTypeKeyword) {
+        CHECK_AND_RETURN(mc_writer_write_u32(&writer, iev->edge_count, status));
     }
 
     // Serialize encrypted value
@@ -769,6 +791,12 @@ static bool validate_for_text(const mc_FLE2IndexedEncryptedValueV2_t *iev, mongo
     return true;
 }
 
+static bool validate_for_keyword(const mc_FLE2IndexedEncryptedValueV2_t *iev, mongocrypt_status_t *status) {
+    CHECK(iev->fle_blob_subtype == MC_SUBTYPE_FLE2IndexedKeywordEncryptedValue, "fle_blob_subtype does not match type");
+    CHECK(is_fle2_text_indexed_supported_type(iev->bson_value_type), "bson_value_type is invalid");
+    return true;
+}
+
 bool mc_FLE2IndexedEncryptedValueV2_validate(const mc_FLE2IndexedEncryptedValueV2_t *iev, mongocrypt_status_t *status) {
     BSON_ASSERT_PARAM(iev);
     CHECK(iev->type == kFLE2IEVTypeEqualityV2 || iev->type == kFLE2IEVTypeRangeV2 || iev->type == kFLE2IEVTypeText,
@@ -778,8 +806,10 @@ bool mc_FLE2IndexedEncryptedValueV2_validate(const mc_FLE2IndexedEncryptedValueV
         validate_for_equality(iev, status);
     } else if (iev->type == kFLE2IEVTypeRangeV2) {
         validate_for_range(iev, status);
-    } else {
+    } else if (iev->type == kFLE2IEVTypeText) {
         validate_for_text(iev, status);
+    } else {
+        validate_for_keyword(iev, status);
     }
 
     if (!mongocrypt_status_ok(status)) {

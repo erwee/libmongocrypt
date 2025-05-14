@@ -47,6 +47,8 @@ typedef enum {
     /* Text Search Subtypes */
     MC_SUBTYPE_FLE2IndexedTextEncryptedValue = 17,
     MC_SUBTYPE_FLE2FindTextPayload = 18,
+    MC_SUBTYPE_FLE2IndexedKeywordEncryptedValue = 19,
+    MC_SUBTYPE_FLE2FindKeywordPayload = 20,
 } mc_fle_blob_subtype_t;
 
 #endif /* MC_FLE_BLOB_SUBTYPE_PRIVATE_H */
