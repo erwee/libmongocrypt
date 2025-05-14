@@ -40,6 +40,7 @@ DEF_TEXT_SEARCH_TOKEN_SET(Exact);
 DEF_TEXT_SEARCH_TOKEN_SET(Substring);
 DEF_TEXT_SEARCH_TOKEN_SET(Suffix);
 DEF_TEXT_SEARCH_TOKEN_SET(Prefix);
+DEF_TEXT_SEARCH_TOKEN_SET(Keyword);
 
 typedef struct {
     mc_TextExactTokenSet_t exact; // e
@@ -161,6 +162,7 @@ bool mc_FLE2InsertUpdatePayloadV2_serialize(const mc_FLE2InsertUpdatePayloadV2_t
 bool mc_FLE2InsertUpdatePayloadV2_serializeForRange(const mc_FLE2InsertUpdatePayloadV2_t *payload, bson_t *out);
 
 bool mc_FLE2InsertUpdatePayloadV2_serializeForTextSearch(const mc_FLE2InsertUpdatePayloadV2_t *payload, bson_t *out);
+bool mc_FLE2InsertUpdatePayloadV2_serializeForKeywordSearch(const mc_FLE2InsertUpdatePayloadV2_t *payload, bson_t *out);
 
 void mc_FLE2InsertUpdatePayloadV2_cleanup(mc_FLE2InsertUpdatePayloadV2_t *payload);
 

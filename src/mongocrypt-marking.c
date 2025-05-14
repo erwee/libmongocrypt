@@ -357,6 +357,8 @@ DERIVE_TEXT_SEARCH_TOKEN_IMPL(EDC, Suffix)
 DERIVE_TEXT_SEARCH_TOKEN_IMPL(ESC, Suffix)
 DERIVE_TEXT_SEARCH_TOKEN_IMPL(EDC, Prefix)
 DERIVE_TEXT_SEARCH_TOKEN_IMPL(ESC, Prefix)
+DERIVE_TEXT_SEARCH_TOKEN_IMPL(EDC, Keyword)
+DERIVE_TEXT_SEARCH_TOKEN_IMPL(ESC, Keyword)
 #undef DERIVE_TEXT_SEARCH_TOKEN_IMPL
 
 /**
@@ -403,6 +405,7 @@ DERIVE_TEXT_SEARCH_SERVER_DERIVED_FROM_DATA_TOKEN_IMPL(Exact)
 DERIVE_TEXT_SEARCH_SERVER_DERIVED_FROM_DATA_TOKEN_IMPL(Substring)
 DERIVE_TEXT_SEARCH_SERVER_DERIVED_FROM_DATA_TOKEN_IMPL(Suffix)
 DERIVE_TEXT_SEARCH_SERVER_DERIVED_FROM_DATA_TOKEN_IMPL(Prefix)
+DERIVE_TEXT_SEARCH_SERVER_DERIVED_FROM_DATA_TOKEN_IMPL(Keyword)
 #undef DERIVE_TEXT_SEARCH_SERVER_DERIVED_FROM_DATA_TOKEN_IMPL
 
 static bool _fle2_derive_serverDerivedFromDataToken(_mongocrypt_crypto_t *crypto,
@@ -1178,6 +1181,7 @@ GENERATE_TEXT_SEARCH_TOKEN_SET_FOR_TYPE_IMPL(Exact)
 GENERATE_TEXT_SEARCH_TOKEN_SET_FOR_TYPE_IMPL(Substring)
 GENERATE_TEXT_SEARCH_TOKEN_SET_FOR_TYPE_IMPL(Suffix)
 GENERATE_TEXT_SEARCH_TOKEN_SET_FOR_TYPE_IMPL(Prefix)
+GENERATE_TEXT_SEARCH_TOKEN_SET_FOR_TYPE_IMPL(Keyword)
 #undef GENERATE_TEXT_SEARCH_TOKEN_SET_FOR_TYPE_IMPL
 
 static bool _fle2_generate_TextSearchTokenSets(_mongocrypt_key_broker_t *kb,
@@ -1458,6 +1462,215 @@ static bool _fle2_generate_TextSearchFindTokenSets(_mongocrypt_key_broker_t *kb,
 fail:
     _mongocrypt_buffer_cleanup(&asBsonValue);
     _FLE2EncryptedPayloadCommon_cleanup(&common);
+    return res;
+}
+
+static bool
+_mongocrypt_fle2_placeholder_to_insert_update_ciphertextForKeywordSearch(_mongocrypt_key_broker_t *kb,
+                                                                         _mongocrypt_marking_t *marking,
+                                                                         _mongocrypt_ciphertext_t *ciphertext,
+                                                                         mongocrypt_status_t *status) {
+    BSON_ASSERT_PARAM(kb);
+    BSON_ASSERT_PARAM(marking);
+    BSON_ASSERT_PARAM(ciphertext);
+    BSON_ASSERT(kb->crypt);
+    BSON_ASSERT(marking->type == MONGOCRYPT_MARKING_FLE2_ENCRYPTION);
+    mc_FLE2EncryptionPlaceholder_t *placeholder = &marking->u.fle2;
+    BSON_ASSERT(placeholder->type == MONGOCRYPT_FLE2_PLACEHOLDER_TYPE_INSERT);
+    BSON_ASSERT(placeholder->algorithm == MONGOCRYPT_FLE2_ALGORITHM_KEYWORD_SEARCH);
+
+    _FLE2EncryptedPayloadCommon_t common = {{0}};
+    mc_FLE2InsertUpdatePayloadV2_t payload;
+    mc_FLE2InsertUpdatePayloadV2_init(&payload);
+
+    _mongocrypt_buffer_t value = {0};
+    size_t edges_len = 0;
+    char **edges = NULL;
+
+    bool res = false;
+
+    // t
+    payload.valueType = BSON_TYPE_UTF8;
+
+    // k
+    payload.contentionFactor = 0;
+    if (placeholder->maxContentionFactor > 0) {
+        /* Choose a random contentionFactor in the inclusive range [0,
+         * placeholder->maxContentionFactor] */
+        if (!_mongocrypt_random_int64(kb->crypt->crypto,
+                                      placeholder->maxContentionFactor + 1,
+                                      &payload.contentionFactor,
+                                      status)) {
+            goto fail;
+        }
+    }
+
+    // u
+    _mongocrypt_buffer_copy_to(&placeholder->index_key_id, &payload.indexKeyId);
+
+    _mongocrypt_buffer_from_iter(&value, &placeholder->v_iter);
+    if (!_mongocrypt_fle2_placeholder_common(kb,
+                                             &common,
+                                             &placeholder->index_key_id,
+                                             &value,
+                                             true, /* derive tokens using contentionFactor */
+                                             payload.contentionFactor,
+                                             status)) {
+        goto fail;
+    }
+
+    // (d, s, l) are never used for keyword search, so just set these to bogus buffers of
+    // correct length.
+    BSON_ASSERT(_mongocrypt_buffer_steal_from_data_and_size(&payload.edcDerivedToken,
+                                                            bson_malloc0(MONGOCRYPT_HMAC_SHA256_LEN),
+                                                            MONGOCRYPT_HMAC_SHA256_LEN));
+    _mongocrypt_buffer_copy_to(&payload.edcDerivedToken, &payload.escDerivedToken);
+    _mongocrypt_buffer_copy_to(&payload.edcDerivedToken, &payload.serverDerivedFromDataToken);
+
+    // p := EncryptCTR(ECOCToken, ESCDerivedFromDataTokenAndContentionFactor)
+    // Since p is never used for keyword search, this just sets p to a bogus ciphertext of
+    // the correct length.
+    if (!_fle2_derive_encrypted_token(kb->crypt->crypto,
+                                      &payload.encryptedTokens,
+                                      false,
+                                      common.collectionsLevel1Token,
+                                      &payload.escDerivedToken, // bogus
+                                      NULL,                     // unused in FLE2v2
+                                      (mc_optional_bool_t){0},
+                                      status)) {
+        goto fail;
+    }
+
+    // v := UserKeyId + EncryptCBCAEAD(UserKey, value)
+    {
+        _mongocrypt_buffer_t ciphertext = {0};
+        if (!_fle2_placeholder_aes_aead_encrypt(kb,
+                                                _mcFLE2v2AEADAlgorithm(),
+                                                &ciphertext,
+                                                &placeholder->user_key_id,
+                                                &value,
+                                                status)) {
+            goto fail;
+        }
+        const _mongocrypt_buffer_t v[2] = {placeholder->user_key_id, ciphertext};
+        const bool ok = _mongocrypt_buffer_concat(&payload.value, v, 2);
+        _mongocrypt_buffer_cleanup(&ciphertext);
+        if (!ok) {
+            goto fail;
+        }
+    }
+    // e := ServerDataEncryptionLevel1Token
+    _mongocrypt_buffer_copy_to(mc_ServerDataEncryptionLevel1Token_get(common.serverDataEncryptionLevel1Token),
+                               &payload.serverEncryptionToken);
+
+    // g:= array<EdgeTokenSetV2>
+    {
+        uint32_t str_len;
+        const char *str = bson_iter_utf8(&placeholder->v_iter, &str_len);
+        bool in_word = false;
+        for (uint32_t i = 0; i < str_len; i++) {
+            switch (str[i]) {
+            case ' ':
+            case '\n':
+            case '\r':
+            case '\t':
+                if (in_word) {
+                    edges_len++;
+                    in_word = false;
+                }
+                break;
+            case '\0': {
+                CLIENT_ERR("NULL bytes not allowed in string!");
+                goto fail;
+            }
+            default: {
+                in_word = true;
+                break;
+            }
+            }
+        }
+        if (in_word) {
+            edges_len++;
+        }
+        if (edges_len > 0) {
+            edges = bson_malloc0(edges_len * sizeof(char *));
+            size_t edge_idx = 0;
+            uint32_t start_idx = 0;
+            for (uint32_t i = 0; i < str_len; i++) {
+                switch (str[i]) {
+                case ' ':
+                case '\n':
+                case '\r':
+                case '\t':
+                    if (in_word) {
+                        edges[edge_idx++] = bson_strndup(&str[start_idx], (i - start_idx));
+                        in_word = false;
+                    }
+                    break;
+                default:
+                    if (!in_word) {
+                        start_idx = i;
+                        in_word = true;
+                    }
+                    break;
+                }
+            }
+            if (in_word) {
+                edges[edge_idx++] = bson_strndup(&str[start_idx], (str_len - start_idx));
+            }
+        } else {
+            edges_len++;
+            edges = bson_malloc0(edges_len * sizeof(char *));
+            edges[0] = bson_strdup("");
+        }
+
+        for (size_t i = 0; i < edges_len; ++i) {
+            // Create an EdgeTokenSet from each edge.
+            const char *edge = edges[i];
+
+            mc_TextKeywordTokenSet_t tset = {{0}};
+
+            _mongocrypt_buffer_t asBsonValue;
+            _mongocrypt_buffer_init(&asBsonValue);
+            _mongocrypt_buffer_copy_from_string_as_bson_value(&asBsonValue, edge, strlen(edge));
+
+            if (!_fle2_generate_TextKeywordTokenSet(kb,
+                                                    &tset,
+                                                    &asBsonValue,
+                                                    payload.contentionFactor,
+                                                    common.collectionsLevel1Token,
+                                                    common.serverTokenDerivationLevel1Token,
+                                                    status)) {
+                _mongocrypt_buffer_cleanup(&asBsonValue);
+                mc_TextKeywordTokenSet_cleanup(&tset);
+                goto fail;
+            }
+            // array now owns tset
+            _mc_array_append_val(&payload.edgeTokenSetArray, tset);
+        }
+    }
+
+    {
+        bson_t out;
+        bson_init(&out);
+        mc_FLE2InsertUpdatePayloadV2_serializeForKeywordSearch(&payload, &out);
+        _mongocrypt_buffer_steal_from_bson(&ciphertext->data, &out);
+    }
+    // Do not set ciphertext->original_bson_type and ciphertext->key_id. They are
+    // not used for FLE2InsertUpdatePayloadV2.
+    ciphertext->blob_subtype = MC_SUBTYPE_FLE2InsertUpdatePayloadV2;
+
+    res = true;
+fail:
+    mc_FLE2InsertUpdatePayloadV2_cleanup(&payload);
+    _mongocrypt_buffer_cleanup(&value);
+    _FLE2EncryptedPayloadCommon_cleanup(&common);
+    if (edges) {
+        for (size_t i = 0; i < edges_len; i++) {
+            bson_free(edges[i]);
+        }
+        bson_free(edges);
+    }
     return res;
 }
 
@@ -2247,6 +2460,22 @@ bool _mongocrypt_marking_to_ciphertext(void *ctx,
             case MONGOCRYPT_FLE2_PLACEHOLDER_TYPE_FIND:
                 return _mongocrypt_fle2_placeholder_to_find_ciphertextForTextSearch(kb, marking, ciphertext, status);
             default: CLIENT_ERR("unexpected fle2 type: %d", (int)marking->u.fle2.type); return false;
+            }
+        case MONGOCRYPT_FLE2_ALGORITHM_KEYWORD_SEARCH:
+            switch (marking->u.fle2.type) {
+            case MONGOCRYPT_FLE2_PLACEHOLDER_TYPE_INSERT:
+                return _mongocrypt_fle2_placeholder_to_insert_update_ciphertextForKeywordSearch(kb,
+                                                                                                marking,
+                                                                                                ciphertext,
+                                                                                                status);
+            case MONGOCRYPT_FLE2_PLACEHOLDER_TYPE_FIND: {
+                CLIENT_ERR("Keyword find not yet supported");
+                return false;
+            }
+            default: {
+                CLIENT_ERR("unexpected fle2 type: %d", (int)marking->u.fle2.type);
+                return false;
+            }
             }
         default: CLIENT_ERR("unexpected algorithm: %d", (int)marking->u.fle1.algorithm); return false;
         }

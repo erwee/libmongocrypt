@@ -47,6 +47,7 @@ DEF_TEXT_SEARCH_TOKEN_SET_INIT_CLEANUP(Exact)
 DEF_TEXT_SEARCH_TOKEN_SET_INIT_CLEANUP(Substring)
 DEF_TEXT_SEARCH_TOKEN_SET_INIT_CLEANUP(Suffix)
 DEF_TEXT_SEARCH_TOKEN_SET_INIT_CLEANUP(Prefix)
+DEF_TEXT_SEARCH_TOKEN_SET_INIT_CLEANUP(Keyword)
 #undef DEF_TEXT_SEARCH_TOKEN_SET_INIT_CLEANUP
 
 void mc_TextSearchTokenSets_init(mc_TextSearchTokenSets_t *tsts) {
@@ -387,6 +388,54 @@ bool mc_FLE2InsertUpdatePayloadV2_serializeForRange(const mc_FLE2InsertUpdatePay
 
     BSON_ASSERT(payload->indexMax.value_type != BSON_TYPE_EOD);
     if (!BSON_APPEND_VALUE(out, "mx", &payload->indexMax)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool mc_FLE2InsertUpdatePayloadV2_serializeForKeywordSearch(const mc_FLE2InsertUpdatePayloadV2_t *payload,
+                                                            bson_t *out) {
+    BSON_ASSERT_PARAM(out);
+    BSON_ASSERT_PARAM(payload);
+
+    if (!mc_FLE2InsertUpdatePayloadV2_serialize(payload, out)) {
+        return false;
+    }
+    // Append "g" array of EdgeTokenSets.
+    bson_t g_bson;
+    if (!BSON_APPEND_ARRAY_BEGIN(out, "g", &g_bson)) {
+        return false;
+    }
+
+    uint32_t g_index = 0;
+    for (size_t i = 0; i < payload->edgeTokenSetArray.len; i++) {
+        mc_EdgeTokenSetV2_t etc = _mc_array_index(&payload->edgeTokenSetArray, mc_EdgeTokenSetV2_t, i);
+        bson_t etc_bson;
+
+        const char *g_index_string;
+        char storage[16];
+        bson_uint32_to_string(g_index, &g_index_string, storage, sizeof(storage));
+
+        if (!BSON_APPEND_DOCUMENT_BEGIN(&g_bson, g_index_string, &etc_bson)) {
+            return false;
+        }
+
+        IUPS_APPEND_BINDATA(&etc_bson, "d", BSON_SUBTYPE_BINARY, etc.edcDerivedToken);
+        IUPS_APPEND_BINDATA(&etc_bson, "s", BSON_SUBTYPE_BINARY, etc.escDerivedToken);
+        IUPS_APPEND_BINDATA(&etc_bson, "l", BSON_SUBTYPE_BINARY, etc.serverDerivedFromDataToken);
+        IUPS_APPEND_BINDATA(&etc_bson, "p", BSON_SUBTYPE_BINARY, etc.encryptedTokens);
+
+        if (!bson_append_document_end(&g_bson, &etc_bson)) {
+            return false;
+        }
+        if (g_index == UINT32_MAX) {
+            break;
+        }
+        g_index++;
+    }
+
+    if (!bson_append_array_end(out, &g_bson)) {
         return false;
     }
 
