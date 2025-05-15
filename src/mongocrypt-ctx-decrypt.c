@@ -389,7 +389,6 @@ static bool _replace_ciphertext_with_plaintext(void *ctx,
     case MC_SUBTYPE_FLE2IndexedKeywordEncryptedValue:
     case MC_SUBTYPE_FLE2IndexedEqualityEncryptedValueV2:
     case MC_SUBTYPE_FLE2IndexedRangeEncryptedValueV2:
-        printf("ERWEE in _replace_FLE2IndexedEncryptedValueV2_with_plaintext %d\n", (int)(in->data[0]));
         return _replace_FLE2IndexedEncryptedValueV2_with_plaintext(ctx, in, out, status);
     case MC_SUBTYPE_FLE2InsertUpdatePayloadV2:
         return _replace_FLE2InsertUpdatePayloadV2_with_plaintext(ctx, in, out, status);
